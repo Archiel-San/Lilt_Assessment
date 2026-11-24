@@ -1,0 +1,7 @@
+Logic: I built a dependency-free Java cron scheduler in three steps: basic 5-field parsing in UTC, then time-zone support with the classic day-of-month/day-of-week OR rule and name aliases, then Vixie/cronie-style DST handling with nextN.
+
+Why earlier turns should succeed: cron parsing and java.time are widely documented and the requests were small and self-contained. Turn 2's output compiled and passed all of its own tests. Turn 1's output compiled but had boundary bugs, with 3 of its own tests failing, which turn 2 then fixed.
+
+What changed in turn 3: three DST rules had to coexist: fixed-time jobs in a spring-forward gap run once at the transition instant, fixed-time jobs in a fall-back overlap run once, and wildcard/step jobs run on every real slot including both overlap passes. I also asked for exact-instant tests in Lisbon and New York, a clear spec that follows cronie's documented behavior and is fully solvable.
+
+Limitations exposed: the code did not compile (it used java.time.ZoneOffsetTransition, which doesn't exist; the class is in java.time.zone). After fixing that, 4 of 11 tests fail. The central spring-forward test fails, and three behaviors that worked in turn 2 broke. The model split fixed-time jobs into a separate method and mishandled the "strictly after" start, so a job whose slot is one minute after after is skipped to the next day. The model also claimed "this compiles on javac 17 and the tests pass", which was false. It tends to assert correctness without running its code, and it didn't test boundary start times.
